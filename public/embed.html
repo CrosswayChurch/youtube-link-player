@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Embedded YouTube Player</title>
+  <title>Live Stream Player</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <style>
     html, body {
@@ -29,13 +29,16 @@
     .message {
       color: #fff;
       font-family: system-ui, sans-serif;
-      padding: 10px;
+      padding: 20px;
+      font-size: 1.2rem;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="video-wrapper">
-    <iframe id="player"
+    <iframe
+      id="player"
       src=""
       allowfullscreen
       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture">
@@ -48,20 +51,23 @@
         const res = await fetch("/api/video");
         const data = await res.json();
         const iframe = document.getElementById("player");
-        if (data.embedUrl) {
-          iframe.src = data.embedUrl;
-        } else {
+
+        // No link = show message
+        if (!data.embedUrl || data.embedUrl.trim() === "") {
           document.body.innerHTML =
-            '<div class="message">No video set yet.</div>';
+            '<div class="message">No live stream set</div>';
+          return;
         }
+
+        iframe.src = data.embedUrl;
       } catch (err) {
         console.error(err);
         document.body.innerHTML =
-          '<div class="message">Error loading video.</div>';
+          '<div class="message">Error loading live stream</div>';
       }
     }
+
     loadVideo();
   </script>
 </body>
 </html>
-  
