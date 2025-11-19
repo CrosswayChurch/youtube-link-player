@@ -1,9 +1,12 @@
 {
   "name": "youtube-link-server",
   "version": "1.0.0",
+  "description": "Server for shared YouTube link embedding",
   "main": "server.js",
-  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
   }
 }
