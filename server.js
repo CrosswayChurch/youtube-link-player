@@ -7,9 +7,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Serve static files (admin.html, embed.html)
-app.use(express.static(path.join(__dirname, "public")));
-
+// This is the JSON file that stores the current embed URL
 const DATA_FILE = path.join(__dirname, "video.json");
 
 // Read current embed URL from JSON file
@@ -30,13 +28,15 @@ function writeCurrentVideo(embedUrl) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
 }
 
-// API: get current video
+// ----- API ROUTES -----
+
+// GET: current video URL
 app.get("/api/video", (req, res) => {
   const embedUrl = readCurrentVideo();
   res.json({ embedUrl });
 });
 
-// API: set current video
+// POST: update video URL
 app.post("/api/video", (req, res) => {
   const { embedUrl } = req.body;
   if (!embedUrl || typeof embedUrl !== "string") {
@@ -51,6 +51,24 @@ app.post("/api/video", (req, res) => {
   }
 });
 
+// ----- STATIC FILES -----
+app.use(express.static(path.join(__dirname, "public")));
+
+// Explicit routes for admin and embed pages
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "admin.html"));
+});
+
+app.get("/embed", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "embed.html"));
+});
+
+// Optional: redirect root to admin page
+app.get("/", (req, res) => {
+  res.redirect("/admin");
+});
+
+// Start server
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
