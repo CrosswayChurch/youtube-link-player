@@ -1,164 +1,124 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>Crossway Livestream Admin</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crossway Stream Admin</title>
+
 <style>
-    body {
-        font-family: system-ui, sans-serif;
-        background: #f5f6f7;
-        margin: 0;
-        padding: 0;
-        display: flex;
-        justify-content: center;
-    }
-    .container {
-        width: 100%;
-        max-width: 480px;
-        background: #ffffff;
-        margin: 40px 12px;
-        padding: 28px;
-        border-radius: 18px;
-        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
-        text-align: center;
-    }
-    img.logo {
-        width: 200px;
-        margin-bottom: 18px;
-    }
-    h2 {
-        margin-top: 0;
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: #2a2f38;
-    }
-    input {
-        width: 100%;
-        padding: 12px;
-        margin: 14px 0;
-        border: 1px solid #d0d4d9;
-        border-radius: 10px;
-        font-size: 1rem;
-    }
-    .btn {
-        display: block;
-        width: 100%;
-        padding: 12px;
-        margin-top: 10px;
-        border-radius: 10px;
-        font-size: 1rem;
-        cursor: pointer;
-        border: none;
-        transition: 0.2s;
-    }
-    .primary {
-        background: #5da9c7;
-        color: #fff;
-    }
-    .primary:hover { background: #478ca3; }
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 30px;
+    text-align: center;
+  }
 
-    .danger {
-        background: #e25d5d;
-        color: #fff;
-    }
-    .danger:hover { background: #c44949; }
+  img.logo {
+    width: 180px;
+    margin-bottom: 20px;
+  }
 
-    .back {
-        background: #ddd;
-        color: #000;
-        margin-top: 22px;
-    }
-    .back:hover { background: #ccc; }
+  input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1rem;
+    margin-bottom: 15px;
+  }
 
-    .status {
-        margin-top: 14px;
-        font-size: 0.95rem;
-        color: #444;
-    }
+  button {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+
+  .save {
+    background: #2a2f38;
+    color: white;
+  }
+
+  .clear {
+    background: #c0392b;
+    color: white;
+  }
+
+  .back {
+    background: #5da9c7;
+    color: white;
+  }
+
+  p.status {
+    margin-top: 15px;
+    font-weight: 600;
+  }
 </style>
 </head>
+
 <body>
 
-<div class="container">
+<img class="logo" src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png">
 
-    <img class="logo" src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
+<h2>Update Live Stream</h2>
 
-    <h2>Livestream Admin</h2>
+<input id="url" type="text" placeholder="Paste YouTube link">
 
-    <input id="youtubeUrl" type="text" placeholder="Paste YouTube livestream link">
+<button class="save" id="saveBtn">Save Stream Link</button>
+<button class="clear" id="clearBtn">Clear Link</button>
+<button class="back" onclick="location.href='https://www.crossway-fellowship.org/live-streams'">Back to Live Stream</button>
 
-    <button id="saveBtn" class="btn primary">Save Link</button>
-    <button id="clearBtn" class="btn danger">Clear Link</button>
-
-    <a href="https://www.crossway-fellowship.org/live-streams">
-        <button class="btn back">Back to Live Stream</button>
-    </a>
-
-    <div id="statusMsg" class="status"></div>
-</div>
+<p class="status" id="status"></p>
 
 <script>
-    const urlInput  = document.getElementById("youtubeUrl");
-    const statusMsg = document.getElementById("statusMsg");
-    const saveBtn   = document.getElementById("saveBtn");
-    const clearBtn  = document.getElementById("clearBtn");
-
-    function toEmbedUrl(rawUrl) {
-        rawUrl = rawUrl.trim();
-        try {
-            const url = new URL(rawUrl);
-            const host = url.hostname.replace("www.", "");
-            if (host === "youtube.com" || host === "m.youtube.com") {
-                const v = url.searchParams.get("v");
-                if (v) return `https://www.youtube.com/embed/${v}`;
-            }
-            if (host === "youtu.be") {
-                const id = url.pathname.replace("/", "");
-                if (id) return `https://www.youtube.com/embed/${id}`;
-            }
-            return rawUrl;
-        } catch {
-            return rawUrl;
-        }
+function toEmbed(raw) {
+  try {
+    const u = new URL(raw);
+    if (u.hostname.includes("youtu")) {
+      const id =
+        u.searchParams.get("v") ||
+        u.pathname.split("/").pop();
+      return "https://www.youtube.com/embed/" + id;
     }
+  } catch {}
+  return raw;
+}
 
-    async function loadCurrent() {
-        const res = await fetch("/api/video");
-        const data = await res.json();
-        if (data.embedUrl) urlInput.value = data.embedUrl;
-    }
+async function load() {
+  const res = await fetch("/api/video");
+  const data = await res.json();
+  document.getElementById("url").value = data.embedUrl || "";
+}
 
-    saveBtn.onclick = async () => {
-        const raw = urlInput.value.trim();
-        if (!raw) {
-            statusMsg.textContent = "Please paste a YouTube URL.";
-            return;
-        }
+document.getElementById("saveBtn").onclick = async () => {
+  const raw = document.getElementById("url").value.trim();
+  const embed = raw ? toEmbed(raw) : "";
 
-        const embedUrl = toEmbedUrl(raw);
+  await fetch("/api/video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ embedUrl: embed })
+  });
 
-        await fetch("/api/video", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ embedUrl })
-        });
+  document.getElementById("status").textContent = "Saved!";
+};
 
-        statusMsg.textContent = "Saved! Live stream updated.";
-    };
+document.getElementById("clearBtn").onclick = async () => {
+  await fetch("/api/video", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ embedUrl: "" })
+  });
 
-    clearBtn.onclick = async () => {
-        await fetch("/api/video", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ embedUrl: "" })
-        });
+  document.getElementById("url").value = "";
+  document.getElementById("status").textContent = "Link cleared!";
+};
 
-        urlInput.value = "";
-        statusMsg.textContent = "Link cleared. No video will display.";
-    };
-
-    loadCurrent();
+load();
 </script>
 
 </body>
