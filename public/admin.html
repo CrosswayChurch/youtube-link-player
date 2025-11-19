@@ -1,1 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>YouTube Link Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 700px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+      box-sizing: border-box;
+    }
+    button {
+      padding: 8px 16px;
+      border: none;
+      background: #2563eb;
+      color: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .status {
+      margin-top: 10px;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>YouTube Link Admin</h1>
+
+  <input id="youtubeUrl" placeholder="Paste YouTube link here" />
+  <button id="saveBtn">Save</button>
+
+  <div id="statusMsg" class="status"></div>
+
+  <script>
+    async function loadCurrent() {
+      const res = await fetch("/api/video");
+      const data = await res.json();
+      document.getElementById("youtubeUrl").value = data.embedUrl || "";
+    }
+
+    function convert(url) {
+      try {
+        const u = new URL(url.trim());
+        if (u.hostname.includes("youtu.be")) {
+          return "https://www.youtube.com/embed/" + u.pathname.slice(1);
+        }
+        if (u.searchParams.get("v")) {
+          return "https://www.youtube.com/embed/" + u.searchParams.get("v");
+        }
+        return url;
+      } catch {
+        return url;
+      }
+    }
+
+    document.getElementById("saveBtn").onclick = async () => {
+      const raw = document.getElementById("youtubeUrl").value;
+      const embedUrl = convert(raw);
+
+      const res = await fetch("/api/video", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ embedUrl })
+      });
+
+      if (res.ok) {
+        document.getElementById("statusMsg").textContent = "Saved!";
+      } else {
+        document.getElementById("statusMsg").textContent = "Error saving.";
+      }
+    };
+
+    loadCurrent();
+  </script>
+</body>
+</html>
 
