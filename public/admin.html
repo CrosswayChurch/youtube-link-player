@@ -1,85 +1,165 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>YouTube Link Admin</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <style>
+<meta charset="UTF-8">
+<title>Crossway Livestream Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
     body {
-      font-family: system-ui, sans-serif;
-      max-width: 700px;
-      margin: 0 auto;
-      padding: 20px;
+        font-family: system-ui, sans-serif;
+        background: #f5f6f7;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+    }
+    .container {
+        width: 100%;
+        max-width: 480px;
+        background: #ffffff;
+        margin: 40px 12px;
+        padding: 28px;
+        border-radius: 18px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        text-align: center;
+    }
+    img.logo {
+        width: 200px;
+        margin-bottom: 18px;
+    }
+    h2 {
+        margin-top: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        color: #2a2f38;
     }
     input {
-      width: 100%;
-      padding: 8px;
-      margin-bottom: 10px;
-      box-sizing: border-box;
+        width: 100%;
+        padding: 12px;
+        margin: 14px 0;
+        border: 1px solid #d0d4d9;
+        border-radius: 10px;
+        font-size: 1rem;
     }
-    button {
-      padding: 8px 16px;
-      border: none;
-      background: #2563eb;
-      color: white;
-      border-radius: 4px;
-      cursor: pointer;
+    .btn {
+        display: block;
+        width: 100%;
+        padding: 12px;
+        margin-top: 10px;
+        border-radius: 10px;
+        font-size: 1rem;
+        cursor: pointer;
+        border: none;
+        transition: 0.2s;
     }
+    .primary {
+        background: #5da9c7;
+        color: #fff;
+    }
+    .primary:hover { background: #478ca3; }
+
+    .danger {
+        background: #e25d5d;
+        color: #fff;
+    }
+    .danger:hover { background: #c44949; }
+
+    .back {
+        background: #ddd;
+        color: #000;
+        margin-top: 22px;
+    }
+    .back:hover { background: #ccc; }
+
     .status {
-      margin-top: 10px;
-      font-size: 0.9rem;
+        margin-top: 14px;
+        font-size: 0.95rem;
+        color: #444;
     }
-  </style>
+</style>
 </head>
 <body>
-  <h1>YouTube Link Admin</h1>
 
-  <input id="youtubeUrl" placeholder="Paste YouTube link here" />
-  <button id="saveBtn">Save</button>
+<div class="container">
 
-  <div id="statusMsg" class="status"></div>
+    <img class="logo" src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
 
-  <script>
+    <h2>Livestream Admin</h2>
+
+    <input id="youtubeUrl" type="text" placeholder="Paste YouTube livestream link">
+
+    <button id="saveBtn" class="btn primary">Save Link</button>
+    <button id="clearBtn" class="btn danger">Clear Link</button>
+
+    <a href="https://www.crossway-fellowship.org/live-streams">
+        <button class="btn back">Back to Live Stream</button>
+    </a>
+
+    <div id="statusMsg" class="status"></div>
+</div>
+
+<script>
+    const urlInput  = document.getElementById("youtubeUrl");
+    const statusMsg = document.getElementById("statusMsg");
+    const saveBtn   = document.getElementById("saveBtn");
+    const clearBtn  = document.getElementById("clearBtn");
+
+    function toEmbedUrl(rawUrl) {
+        rawUrl = rawUrl.trim();
+        try {
+            const url = new URL(rawUrl);
+            const host = url.hostname.replace("www.", "");
+            if (host === "youtube.com" || host === "m.youtube.com") {
+                const v = url.searchParams.get("v");
+                if (v) return `https://www.youtube.com/embed/${v}`;
+            }
+            if (host === "youtu.be") {
+                const id = url.pathname.replace("/", "");
+                if (id) return `https://www.youtube.com/embed/${id}`;
+            }
+            return rawUrl;
+        } catch {
+            return rawUrl;
+        }
+    }
+
     async function loadCurrent() {
-      const res = await fetch("/api/video");
-      const data = await res.json();
-      document.getElementById("youtubeUrl").value = data.embedUrl || "";
+        const res = await fetch("/api/video");
+        const data = await res.json();
+        if (data.embedUrl) urlInput.value = data.embedUrl;
     }
 
-    function convert(url) {
-      try {
-        const u = new URL(url.trim());
-        if (u.hostname.includes("youtu.be")) {
-          return "https://www.youtube.com/embed/" + u.pathname.slice(1);
+    saveBtn.onclick = async () => {
+        const raw = urlInput.value.trim();
+        if (!raw) {
+            statusMsg.textContent = "Please paste a YouTube URL.";
+            return;
         }
-        if (u.searchParams.get("v")) {
-          return "https://www.youtube.com/embed/" + u.searchParams.get("v");
-        }
-        return url;
-      } catch {
-        return url;
-      }
-    }
 
-    document.getElementById("saveBtn").onclick = async () => {
-      const raw = document.getElementById("youtubeUrl").value;
-      const embedUrl = convert(raw);
+        const embedUrl = toEmbedUrl(raw);
 
-      const res = await fetch("/api/video", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ embedUrl })
-      });
+        await fetch("/api/video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ embedUrl })
+        });
 
-      if (res.ok) {
-        document.getElementById("statusMsg").textContent = "Saved!";
-      } else {
-        document.getElementById("statusMsg").textContent = "Error saving.";
-      }
+        statusMsg.textContent = "Saved! Live stream updated.";
+    };
+
+    clearBtn.onclick = async () => {
+        await fetch("/api/video", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ embedUrl: "" })
+        });
+
+        urlInput.value = "";
+        statusMsg.textContent = "Link cleared. No video will display.";
     };
 
     loadCurrent();
-  </script>
+</script>
+
 </body>
 </html>
-
