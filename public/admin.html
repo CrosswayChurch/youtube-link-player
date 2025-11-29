@@ -43,6 +43,11 @@
     color: white;
   }
 
+  .pause-toggle {
+    background: #f39c12; /* orange-ish for status */
+    color: white;
+  }
+
   .clear {
     background: #c0392b;
     color: white;
@@ -69,6 +74,7 @@
 <input id="url" type="text" placeholder="Paste YouTube link">
 
 <button class="save" id="saveBtn">Save Stream Link</button>
+<button class="pause-toggle" id="pauseBtn">Pause for Sunday School</button>
 <button class="clear" id="clearBtn">Clear Link</button>
 <button class="back" onclick="location.href='https://www.crossway-fellowship.org/live-streams'">Back to Live Stream</button>
 
@@ -88,10 +94,26 @@ function toEmbed(raw) {
   return raw;
 }
 
+function setPauseButtonState(isPaused) {
+  const btn = document.getElementById("pauseBtn");
+  btn.dataset.paused = isPaused ? "true" : "false";
+
+  if (isPaused) {
+    btn.textContent = "Resume Live Stream";
+  } else {
+    btn.textContent = "Pause for Sunday School";
+  }
+}
+
 async function load() {
   const res = await fetch("/api/video");
   const data = await res.json();
+
   document.getElementById("url").value = data.embedUrl || "";
+
+  // If backend returns a paused flag, use it; otherwise default to false
+  const paused = !!data.paused;
+  setPauseButtonState(paused);
 }
 
 document.getElementById("saveBtn").onclick = async () => {
@@ -116,6 +138,25 @@ document.getElementById("clearBtn").onclick = async () => {
 
   document.getElementById("url").value = "";
   document.getElementById("status").textContent = "Link cleared!";
+};
+
+document.getElementById("pauseBtn").onclick = async () => {
+  const btn = document.getElementById("pauseBtn");
+  const currentlyPaused = btn.dataset.paused === "true";
+  const newPaused = !currentlyPaused;
+
+  await fetch("/api/pause", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ paused: newPaused })
+  });
+
+  setPauseButtonState(newPaused);
+
+  const status = document.getElementById("status");
+  status.textContent = newPaused
+    ? 'Live stream is marked as "paused for Sunday School".'
+    : "Live stream is active again.";
 };
 
 load();
