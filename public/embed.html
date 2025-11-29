@@ -32,7 +32,7 @@
       border: 0;
     }
 
-    /* EMPTY STATE */
+    /* EMPTY STATE + PAUSED STATE */
     .empty-state, .pause-screen {
       position: absolute;
       inset: 0;
@@ -47,18 +47,19 @@
 
     .empty-state img,
     .pause-screen img {
-      width: 320px;       /* bigger logo */
+      width: 320px;       /* larger logo */
       max-width: 80%;
       margin-bottom: 30px;
     }
 
     .empty-state p,
     .pause-screen p {
-      font-size: 1.8rem;      /* bigger text */
+      font-size: 1.8rem;
       font-weight: 700;
       color: #222;
       margin: 0;
       margin-bottom: 10px;
+      line-height: 1.4;
     }
 
     .pause-screen small {
@@ -103,7 +104,6 @@
         const iframe = document.getElementById("player");
 
         if (paused) {
-          // Show pause screen
           pausedScreen.style.display = "flex";
           empty.style.display = "none";
           video.style.display = "none";
@@ -111,13 +111,13 @@
         }
 
         if (url.trim() === "") {
-          // Show "not started yet" screen
           pausedScreen.style.display = "none";
           empty.style.display = "flex";
           video.style.display = "none";
         } else {
-          // Show video
-          iframe.src = url;
+          if (iframe.src !== url) {
+            iframe.src = url;
+          }
           pausedScreen.style.display = "none";
           empty.style.display = "none";
           video.style.display = "block";
@@ -127,7 +127,11 @@
       }
     }
 
+    // Load once immediately
     loadVideo();
+
+    // Auto check every 4 seconds (between 3–5 seconds)
+    setInterval(loadVideo, 4000);
   </script>
 
 </body>
