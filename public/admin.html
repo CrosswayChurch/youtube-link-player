@@ -120,7 +120,7 @@ document.getElementById("saveBtn").onclick = async () => {
   });
 
   document.getElementById("status").textContent =
-    "Stream link saved. Viewers will see it and it will autoplay.";
+    "Live Stream Started";
 };
 
 document.getElementById("clearBtn").onclick = async () => {
@@ -133,7 +133,7 @@ document.getElementById("clearBtn").onclick = async () => {
 
   document.getElementById("url").value = "";
   document.getElementById("status").textContent =
-    "Live stream ended and link cleared.";
+    "Live Stream Ended";
 };
 
 document.getElementById("pauseBtn").onclick = async () => {
@@ -151,8 +151,8 @@ document.getElementById("pauseBtn").onclick = async () => {
 
   const status = document.getElementById("status");
   status.textContent = newPaused
-    ? 'Live stream is marked as "paused for Sunday School".'
-    : "Live stream is active again.";
+    ? 'Live Stream Paused for Sunday School".'
+    : "Live stream Started Again";
 };
 
 load();
