@@ -14,7 +14,7 @@
   }
 
   img.logo {
-    width: 180px;
+    width: 240px; /* bigger logo */
     margin-bottom: 20px;
   }
 
@@ -39,22 +39,22 @@
   }
 
   .save {
-    background: #2a2f38;
+    background: #2a2f38; /* black/dark navy */
     color: white;
   }
 
   .pause-toggle {
-    background: #f39c12; /* orange-ish for status */
+    background: #598c9f; /* new blue */
     color: white;
   }
 
   .clear {
-    background: #c0392b;
+    background: #2a2f38; /* same as Start Stream */
     color: white;
   }
 
   .back {
-    background: #5da9c7;
+    background: #598c9f; /* new blue */
     color: white;
   }
 
@@ -73,9 +73,9 @@
 
 <input id="url" type="text" placeholder="Paste YouTube link">
 
-<button class="save" id="saveBtn">Save Stream Link</button>
+<button class="save" id="saveBtn">Start Stream</button>
 <button class="pause-toggle" id="pauseBtn">Pause for Sunday School</button>
-<button class="clear" id="clearBtn">Clear Link</button>
+<button class="clear" id="clearBtn">End Stream</button>
 <button class="back" onclick="location.href='https://www.crossway-fellowship.org/live-streams'">Back to Live Stream</button>
 
 <p class="status" id="status"></p>
@@ -88,7 +88,8 @@ function toEmbed(raw) {
       const id =
         u.searchParams.get("v") ||
         u.pathname.split("/").pop();
-      return "https://www.youtube.com/embed/" + id;
+      // Autoplay embed
+      return "https://www.youtube.com/embed/" + id + "?autoplay=1";
     }
   } catch {}
   return raw;
@@ -97,12 +98,7 @@ function toEmbed(raw) {
 function setPauseButtonState(isPaused) {
   const btn = document.getElementById("pauseBtn");
   btn.dataset.paused = isPaused ? "true" : "false";
-
-  if (isPaused) {
-    btn.textContent = "Resume Live Stream";
-  } else {
-    btn.textContent = "Pause for Sunday School";
-  }
+  btn.textContent = isPaused ? "Resume Live Stream" : "Pause for Sunday School";
 }
 
 async function load() {
@@ -110,10 +106,7 @@ async function load() {
   const data = await res.json();
 
   document.getElementById("url").value = data.embedUrl || "";
-
-  // If backend returns a paused flag, use it; otherwise default to false
-  const paused = !!data.paused;
-  setPauseButtonState(paused);
+  setPauseButtonState(!!data.paused);
 }
 
 document.getElementById("saveBtn").onclick = async () => {
@@ -126,18 +119,21 @@ document.getElementById("saveBtn").onclick = async () => {
     body: JSON.stringify({ embedUrl: embed })
   });
 
-  document.getElementById("status").textContent = "Saved!";
+  document.getElementById("status").textContent =
+    "Stream link saved. Viewers will see it and it will autoplay.";
 };
 
 document.getElementById("clearBtn").onclick = async () => {
   await fetch("/api/video", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ embedUrl: "" })
+    // Clear link AND mark as ended
+    body: JSON.stringify({ embedUrl: "", ended: true })
   });
 
   document.getElementById("url").value = "";
-  document.getElementById("status").textContent = "Link cleared!";
+  document.getElementById("status").textContent =
+    "Live stream ended and link cleared.";
 };
 
 document.getElementById("pauseBtn").onclick = async () => {
