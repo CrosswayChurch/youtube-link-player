@@ -12,50 +12,81 @@ app.use(express.static(path.join(__dirname, "public")));
 
 const DATA_FILE = path.join(__dirname, "video.json");
 
-// Default structure if file is missing or invalid
 const DEFAULT_DATA = {
   embedUrl: "",
   paused: false,
+  ended: false,
 };
 
-// Read full data (embedUrl + paused)
 function readData() {
   try {
     const raw = fs.readFileSync(DATA_FILE, "utf8");
-    return JSON.parse(raw);
-  } catch {
+    const parsed = JSON.parse(raw);
+    return {
+      embedUrl: typeof parsed.embedUrl === "string" ? parsed.embedUrl : "",
+      paused: !!parsed.paused,
+      ended: !!parsed.ended,
+    };
+  } catch (err) {
+    console.error("Error reading video.json:", err);
     return { ...DEFAULT_DATA };
   }
 }
 
-// Save full data to file
 function writeData(data) {
-  fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2), "utf8");
+  const normalized = {
+    embedUrl: typeof data.embedUrl === "string" ? data.embedUrl : "",
+    paused: !!data.paused,
+    ended: !!data.ended,
+  };
+  fs.writeFileSync(DATA_FILE, JSON.stringify(normalized, null, 2), "utf8");
 }
 
-// GET current video + pause state
+// GET current video state
 app.get("/api/video", (req, res) => {
-  const data = readData();
-  res.json(data);
+  res.json(readData());
 });
 
-// POST new video (does not change paused flag)
+// Update video URL and/or ended flag
 app.post("/api/video", (req, res) => {
-  const data = readData();
-  data.embedUrl = req.body.embedUrl || "";
-  writeData(data);
-  res.json({ success: true, ...data });
+  const current = readData();
+  const { embedUrl, ended } = req.body;
+
+  if (typeof embedUrl === "string") {
+    current.embedUrl = embedUrl;
+
+    if (embedUrl === "") {
+      // Clearing the link: not paused, ended stays whatever caller sets
+      current.paused = false;
+    } else {
+      // New live stream implies "not ended"
+      current.ended = false;
+    }
+  }
+
+  if (typeof ended === "boolean") {
+    current.ended = ended;
+  }
+
+  writeData(current);
+  res.json({ success: true, ...current });
 });
 
-// POST pause/resume flag
+// Pause/unpause (Sunday School)
 app.post("/api/pause", (req, res) => {
-  const data = readData();
-  data.paused = !!req.body.paused;
-  writeData(data);
-  res.json({ success: true, ...data });
+  const { paused } = req.body;
+  if (typeof paused !== "boolean") {
+    return res.status(400).json({ error: "paused (boolean) is required" });
+  }
+
+  const current = readData();
+  current.paused = paused;
+
+  writeData(current);
+  res.json({ success: true, ...current });
 });
 
-// 404 fallback
+// Fallback for unknown routes
 app.use((req, res) => {
   res.status(404).send("Not found");
 });
