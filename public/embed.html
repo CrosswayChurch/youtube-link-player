@@ -10,7 +10,7 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      background: #fff; 
+      background: #fff;
       font-family: Arial, sans-serif;
     }
 
@@ -32,8 +32,8 @@
       border: 0;
     }
 
-    /* EMPTY STATE + PAUSED STATE */
-    .empty-state, .pause-screen {
+    /* SHARED SCREEN STYLES (not started, ended, paused) */
+    .screen {
       position: absolute;
       inset: 0;
       display: flex;
@@ -45,25 +45,23 @@
       padding: 2rem;
     }
 
-    .empty-state img,
-    .pause-screen img {
-      width: 320px;       /* larger logo */
+    .screen img {
+      width: 260px;
       max-width: 80%;
-      margin-bottom: 30px;
+      margin-bottom: 40px;
     }
 
-    .empty-state p,
-    .pause-screen p {
-      font-size: 1.8rem;
+    .screen p {
+      font-size: 1.6rem;
       font-weight: 700;
       color: #222;
       margin: 0;
-      margin-bottom: 10px;
       line-height: 1.4;
     }
 
-    .pause-screen small {
-      font-size: 1.2rem;
+    .screen small {
+      display: block;
+      font-size: 1.1rem;
       color: #555;
       margin-top: 10px;
     }
@@ -71,66 +69,112 @@
 </head>
 <body>
 
-  <!-- PAUSED SCREEN -->
-  <div id="pauseScreen" class="pause-screen" style="display:none;">
-    <img src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
-    <p>Live stream is paused for Sunday School</p>
-    <small>Please check back after class.</small>
-  </div>
-
   <!-- NOT STARTED SCREEN -->
-  <div id="emptyState" class="empty-state">
+  <div id="notStartedScreen" class="screen">
     <img src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
     <p>Live stream has not started yet.<br>Please check back later.</p>
   </div>
 
+  <!-- ENDED SCREEN -->
+  <div id="endedScreen" class="screen" style="display:none;">
+    <img src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
+    <p>Live stream has ended.<br>Please check back later.</p>
+  </div>
+
+  <!-- PAUSED FOR SUNDAY SCHOOL -->
+  <div id="pauseScreen" class="screen" style="display:none;">
+    <img src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
+    <p>Live stream is paused for Sunday School.</p>
+    <small>Please check back after class.</small>
+  </div>
+
   <!-- LIVE VIDEO -->
   <div id="videoWrapper" class="video-wrapper">
-    <iframe id="player" src="" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+    <iframe
+      id="player"
+      src=""
+      allow="autoplay; encrypted-media; picture-in-picture"
+      allowfullscreen>
+    </iframe>
   </div>
 
   <script>
+    let lastState = null;
+
     async function loadVideo() {
       try {
-        const res = await fetch("/api/video");
+        const res = await fetch("/api/video", { cache: "no-store" });
         const data = await res.json();
 
-        const url = data.embedUrl || "";
-        const paused = !!data.paused;
+        const state = {
+          embedUrl: data.embedUrl || "",
+          paused: !!data.paused,
+          ended: !!data.ended,
+        };
+
+        // If the admin changed anything, FORCE a reload.
+        if (
+          lastState &&
+          (
+            state.embedUrl !== lastState.embedUrl ||
+            state.paused !== lastState.paused ||
+            state.ended !== lastState.ended
+          )
+        ) {
+          window.location.reload();
+          return;
+        }
+
+        lastState = state;
+
+        const url = state.embedUrl;
+        const paused = state.paused;
+        const ended = state.ended;
 
         const video = document.getElementById("videoWrapper");
-        const empty = document.getElementById("emptyState");
-        const pausedScreen = document.getElementById("pauseScreen");
+        const notStartedScreen = document.getElementById("notStartedScreen");
+        const endedScreen = document.getElementById("endedScreen");
+        const pauseScreen = document.getElementById("pauseScreen");
         const iframe = document.getElementById("player");
 
         if (paused) {
-          pausedScreen.style.display = "flex";
-          empty.style.display = "none";
+          // Show paused screen only
+          pauseScreen.style.display = "flex";
+          notStartedScreen.style.display = "none";
+          endedScreen.style.display = "none";
           video.style.display = "none";
           return;
         }
 
-        if (url.trim() === "") {
-          pausedScreen.style.display = "none";
-          empty.style.display = "flex";
+        if (!url.trim()) {
+          // No video link: either "not started" or "ended"
           video.style.display = "none";
-        } else {
-          if (iframe.src !== url) {
-            iframe.src = url;
+          if (ended) {
+            endedScreen.style.display = "flex";
+            notStartedScreen.style.display = "none";
+          } else {
+            notStartedScreen.style.display = "flex";
+            endedScreen.style.display = "none";
           }
-          pausedScreen.style.display = "none";
-          empty.style.display = "none";
+          pauseScreen.style.display = "none";
+        } else {
+          // Live video
+          if (iframe.src !== url) {
+            iframe.src = url; // URL already has ?autoplay=1
+          }
           video.style.display = "block";
+          notStartedScreen.style.display = "none";
+          endedScreen.style.display = "none";
+          pauseScreen.style.display = "none";
         }
       } catch (err) {
         console.error("Error loading video:", err);
       }
     }
 
-    // Load once immediately
+    // First load
     loadVideo();
-
-    // Auto check every 4 seconds (between 3–5 seconds)
+    // Auto-check every 4 seconds
     setInterval(loadVideo, 4000);
   </script>
 
