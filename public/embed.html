@@ -21,6 +21,7 @@
       height: 100%;
       overflow: hidden;
       display: none; /* Hidden unless a live stream exists */
+      z-index: 0;
     }
 
     .video-wrapper iframe {
@@ -43,6 +44,7 @@
       background: #ffffff;
       text-align: center;
       padding: 1rem;
+      z-index: 0;
     }
 
     .empty-state img {
@@ -57,9 +59,41 @@
       color: #222;
       margin-top: 10px;
     }
+
+    /* ===== PAUSE OVERLAY ===== */
+    .pause-overlay {
+      position: absolute;
+      inset: 0;
+      display: none; /* shown only when paused */
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.7);
+      color: #ffffff;
+      text-align: center;
+      padding: 1.5rem;
+      z-index: 2;
+    }
+
+    .pause-overlay h2 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pause-overlay p {
+      font-size: 1rem;
+      opacity: 0.9;
+    }
   </style>
 </head>
 <body>
+
+  <!-- PAUSE OVERLAY (sits on top of video when active) -->
+  <div id="pauseOverlay" class="pause-overlay">
+    <div>
+      <h2>Live stream is paused for Sunday School</h2>
+      <p>Please check back after class.</p>
+    </div>
+  </div>
 
   <!-- DEFAULT (shown first) -->
   <div id="emptyState" class="empty-state">
@@ -78,20 +112,26 @@
         const res = await fetch("/api/video");
         const data = await res.json();
         const url = data.embedUrl || "";
+        const paused = !!data.paused; // default to false if not set
 
         const video = document.getElementById("videoWrapper");
         const empty = document.getElementById("emptyState");
         const iframe = document.getElementById("player");
+        const overlay = document.getElementById("pauseOverlay");
 
         if (url.trim() === "") {
-          // No video set → show empty state
+          // No video set → show empty state, hide video & overlay
           empty.style.display = "flex";
           video.style.display = "none";
+          overlay.style.display = "none";
         } else {
           // Video exists → show player
           iframe.src = url;
           empty.style.display = "none";
           video.style.display = "block";
+
+          // Show or hide overlay based on paused flag
+          overlay.style.display = paused ? "flex" : "none";
         }
       } catch (err) {
         console.error("Error loading video:", err);
