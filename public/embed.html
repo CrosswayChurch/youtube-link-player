@@ -90,12 +90,18 @@
 
   <!-- LIVE VIDEO -->
   <div id="videoWrapper" class="video-wrapper">
+    <!--
+      IMPORTANT:
+      `src` is set in JS to a NORMAL YouTube embed URL, e.g.
+      https://www.youtube.com/embed/VIDEO_ID?autoplay=1
+      When that loads, YouTube will track views as usual.
+    -->
     <iframe
       id="player"
       src=""
       allow="autoplay; encrypted-media; picture-in-picture"
-      allowfullscreen>
-    </iframe>
+      allowfullscreen
+    ></iframe>
   </div>
 
   <script>
@@ -112,13 +118,14 @@
           ended: !!data.ended,
         };
 
-        // If the admin changed anything, FORCE a reload.
+        // If the admin changed anything, FORCE a reload so the outer page
+        // (your church site) always sees the latest content.
         if (
           lastState &&
           (
             state.embedUrl !== lastState.embedUrl ||
-            state.paused !== lastState.paused ||
-            state.ended !== lastState.ended
+            state.paused   !== lastState.paused   ||
+            state.ended    !== lastState.ended
           )
         ) {
           window.location.reload();
@@ -127,45 +134,48 @@
 
         lastState = state;
 
-        const url = state.embedUrl;
+        const url    = state.embedUrl;  // should be a YouTube embed URL
         const paused = state.paused;
-        const ended = state.ended;
+        const ended  = state.ended;
 
-        const video = document.getElementById("videoWrapper");
+        const video            = document.getElementById("videoWrapper");
         const notStartedScreen = document.getElementById("notStartedScreen");
-        const endedScreen = document.getElementById("endedScreen");
-        const pauseScreen = document.getElementById("pauseScreen");
-        const iframe = document.getElementById("player");
+        const endedScreen      = document.getElementById("endedScreen");
+        const pauseScreen      = document.getElementById("pauseScreen");
+        const iframe           = document.getElementById("player");
 
         if (paused) {
           // Show paused screen only
-          pauseScreen.style.display = "flex";
+          pauseScreen.style.display      = "flex";
           notStartedScreen.style.display = "none";
-          endedScreen.style.display = "none";
-          video.style.display = "none";
+          endedScreen.style.display      = "none";
+          video.style.display            = "none";
           return;
         }
 
         if (!url.trim()) {
           // No video link: either "not started" or "ended"
           video.style.display = "none";
+
           if (ended) {
-            endedScreen.style.display = "flex";
+            endedScreen.style.display      = "flex";
             notStartedScreen.style.display = "none";
           } else {
             notStartedScreen.style.display = "flex";
-            endedScreen.style.display = "none";
+            endedScreen.style.display      = "none";
           }
+
           pauseScreen.style.display = "none";
         } else {
-          // Live video
+          // Live video: show real YouTube embed so YouTube tracks views
           if (iframe.src !== url) {
-            iframe.src = url; // URL already has ?autoplay=1
+            iframe.src = url; // URL already has ?autoplay=1 from admin panel
           }
-          video.style.display = "block";
+
+          video.style.display            = "block";
           notStartedScreen.style.display = "none";
-          endedScreen.style.display = "none";
-          pauseScreen.style.display = "none";
+          endedScreen.style.display      = "none";
+          pauseScreen.style.display      = "none";
         }
       } catch (err) {
         console.error("Error loading video:", err);
@@ -180,3 +190,4 @@
 
 </body>
 </html>
+
