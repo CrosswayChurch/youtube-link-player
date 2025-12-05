@@ -27,7 +27,8 @@ function readVideoData() {
       embedUrl: parsed.embedUrl || "",
       paused: !!parsed.paused,
       ended: !!parsed.ended,
-      endedAt: typeof parsed.endedAt === "number" ? parsed.endedAt : null
+      endedAt: typeof parsed.endedAt === "number" ? parsed.endedAt : null,
+      technicalIssue: !!parsed.technicalIssue
     };
   } catch (err) {
     console.error("Error reading video.json:", err);
@@ -36,7 +37,8 @@ function readVideoData() {
       embedUrl: "",
       paused: false,
       ended: false,
-      endedAt: null
+      endedAt: null,
+      technicalIssue: false
     };
   }
 }
@@ -49,7 +51,8 @@ function writeVideoData(data) {
         embedUrl: data.embedUrl || "",
         paused: !!data.paused,
         ended: !!data.ended,
-        endedAt: data.endedAt || null
+        endedAt: data.endedAt || null,
+        technicalIssue: !!data.technicalIssue
       },
       null,
       2
@@ -86,38 +89,72 @@ app.get("/api/video", (req, res) => {
   res.json({
     embedUrl: data.embedUrl || "",
     paused: !!data.paused,
-    ended
+    ended,
+    technicalIssue: !!data.technicalIssue
   });
 });
 
-// POST new video URL / update ended flag
-// - Start Stream:  { embedUrl: "<youtube-embed-url>" }
-// - End Stream:    { embedUrl: "", ended: true }
+// POST new video URL / update flags
+// Expected body (any subset of these):
+// {
+//   embedUrl: "<youtube-embed-url>",
+//   paused: false,
+//   ended: true/false,
+//   technicalIssue: true/false
+// }
 app.post("/api/video", (req, res) => {
-  const { embedUrl, ended } = req.body;
+  const { embedUrl, ended, paused, technicalIssue } = req.body;
   const data = readVideoData();
 
+  // Update embed URL
   if (typeof embedUrl === "string") {
     data.embedUrl = embedUrl;
 
-    // If we’re starting a new stream, clear ended + paused
+    // If we’re starting a new stream, clear ended / paused / technicalIssue
     if (embedUrl.trim() !== "") {
       data.ended = false;
       data.endedAt = null;
       data.paused = false;
+      data.technicalIssue = false;
     }
   }
 
-  // When admin clicks “End Stream”
+  // Update "ended" flag
   if (ended === true) {
+    // Admin clicked “End Stream”
     data.embedUrl = "";        // make sure there is no active stream
     data.ended = true;
     data.endedAt = Date.now(); // remember when we ended
     data.paused = false;
+    data.technicalIssue = false;
   } else if (ended === false) {
-    // optional: allow explicitly clearing ended state
+    // explicitly clear ended state
     data.ended = false;
     data.endedAt = null;
+  }
+
+  // Update "paused" flag (Pause for Sunday School)
+  if (typeof paused === "boolean") {
+    data.paused = paused;
+    if (data.paused) {
+      // if we’re pausing, it’s definitely not “ended”
+      data.ended = false;
+      data.endedAt = null;
+      // pause is a separate overlay, so clear technical issues overlay
+      data.technicalIssue = false;
+    }
+  }
+
+  // Update technical issues flag
+  if (typeof technicalIssue === "boolean") {
+    data.technicalIssue = technicalIssue;
+
+    if (data.technicalIssue) {
+      // when technical issues overlay is on, we are not paused or ended
+      data.paused = false;
+      data.ended = false;
+      data.endedAt = null;
+    }
   }
 
   writeVideoData(data);
@@ -125,20 +162,23 @@ app.post("/api/video", (req, res) => {
     success: true,
     embedUrl: data.embedUrl,
     paused: data.paused,
-    ended: data.ended
+    ended: data.ended,
+    technicalIssue: data.technicalIssue
   });
 });
 
-// Pause / resume endpoint used by the admin “Pause for Sunday School” button
+// Pause / resume endpoint used by older admin UIs
+// (kept for compatibility; new admin can just use POST /api/video)
 app.post("/api/pause", (req, res) => {
   const { paused } = req.body;
   const data = readVideoData();
 
   data.paused = !!paused;
-  // if we’re pausing, it’s definitely not “ended”
+  // if we’re pausing, it’s definitely not “ended” or “technical issues”
   if (data.paused) {
     data.ended = false;
     data.endedAt = null;
+    data.technicalIssue = false;
   }
 
   writeVideoData(data);
