@@ -28,7 +28,7 @@ function readVideoData() {
       paused: !!parsed.paused,
       ended: !!parsed.ended,
       endedAt: typeof parsed.endedAt === "number" ? parsed.endedAt : null,
-      technicalIssue: !!parsed.technicalIssue
+      technicalIssue: !!parsed.technicalIssue   // <-- NEW FLAG, default false
     };
   } catch (err) {
     console.error("Error reading video.json:", err);
@@ -52,7 +52,7 @@ function writeVideoData(data) {
         paused: !!data.paused,
         ended: !!data.ended,
         endedAt: data.endedAt || null,
-        technicalIssue: !!data.technicalIssue
+        technicalIssue: !!data.technicalIssue   // <-- save flag
       },
       null,
       2
@@ -90,71 +90,51 @@ app.get("/api/video", (req, res) => {
     embedUrl: data.embedUrl || "",
     paused: !!data.paused,
     ended,
-    technicalIssue: !!data.technicalIssue
+    technicalIssue: !!data.technicalIssue   // <-- just exposed, doesn’t change old behavior
   });
 });
 
-// POST new video URL / update flags
-// Expected body (any subset of these):
-// {
-//   embedUrl: "<youtube-embed-url>",
-//   paused: false,
-//   ended: true/false,
-//   technicalIssue: true/false
-// }
+// POST new video URL / update ended flag
+// - Start Stream:  { embedUrl: "<youtube-embed-url>" }
+// - End Stream:    { embedUrl: "", ended: true }
+// - Tech Issues:   { embedUrl: "<url>", technicalIssue: true }
 app.post("/api/video", (req, res) => {
-  const { embedUrl, ended, paused, technicalIssue } = req.body;
+  const { embedUrl, ended, technicalIssue } = req.body;
   const data = readVideoData();
 
-  // Update embed URL
   if (typeof embedUrl === "string") {
     data.embedUrl = embedUrl;
 
-    // If we’re starting a new stream, clear ended / paused / technicalIssue
+    // If we’re starting or changing a stream, clear ended + paused
     if (embedUrl.trim() !== "") {
       data.ended = false;
       data.endedAt = null;
       data.paused = false;
-      data.technicalIssue = false;
+      // if caller included a technicalIssue flag, use it; otherwise default false
+      if (typeof technicalIssue === "boolean") {
+        data.technicalIssue = technicalIssue;
+      } else {
+        data.technicalIssue = false;
+      }
     }
   }
 
-  // Update "ended" flag
+  // When admin clicks “End Stream”
   if (ended === true) {
-    // Admin clicked “End Stream”
     data.embedUrl = "";        // make sure there is no active stream
     data.ended = true;
     data.endedAt = Date.now(); // remember when we ended
     data.paused = false;
-    data.technicalIssue = false;
+    data.technicalIssue = false; // no tech overlay once we’ve fully ended
   } else if (ended === false) {
-    // explicitly clear ended state
+    // optional: allow explicitly clearing ended state
     data.ended = false;
     data.endedAt = null;
   }
 
-  // Update "paused" flag (Pause for Sunday School)
-  if (typeof paused === "boolean") {
-    data.paused = paused;
-    if (data.paused) {
-      // if we’re pausing, it’s definitely not “ended”
-      data.ended = false;
-      data.endedAt = null;
-      // pause is a separate overlay, so clear technical issues overlay
-      data.technicalIssue = false;
-    }
-  }
-
-  // Update technical issues flag
-  if (typeof technicalIssue === "boolean") {
+  // Allow turning tech overlay on/off without changing anything else
+  if (typeof technicalIssue === "boolean" && !data.ended && data.embedUrl) {
     data.technicalIssue = technicalIssue;
-
-    if (data.technicalIssue) {
-      // when technical issues overlay is on, we are not paused or ended
-      data.paused = false;
-      data.ended = false;
-      data.endedAt = null;
-    }
   }
 
   writeVideoData(data);
@@ -167,18 +147,17 @@ app.post("/api/video", (req, res) => {
   });
 });
 
-// Pause / resume endpoint used by older admin UIs
-// (kept for compatibility; new admin can just use POST /api/video)
+// Pause / resume endpoint used by the admin “Pause for Sunday School” button
 app.post("/api/pause", (req, res) => {
   const { paused } = req.body;
   const data = readVideoData();
 
   data.paused = !!paused;
-  // if we’re pausing, it’s definitely not “ended” or “technical issues”
+  // if we’re pausing, it’s definitely not “ended”
   if (data.paused) {
     data.ended = false;
     data.endedAt = null;
-    data.technicalIssue = false;
+    data.technicalIssue = false; // pausing overrides tech overlay
   }
 
   writeVideoData(data);
