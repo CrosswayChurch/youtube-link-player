@@ -67,31 +67,6 @@
     }
 
     /* ============================
-       TECHNICAL ISSUES OVERLAY
-       (transparent, sits on top of video)
-       ============================ */
-    .tech-overlay {
-      position: absolute;
-      inset: 0;
-      display: none;              /* toggled by JS */
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      pointer-events: none;       /* never blocks clicks on the player */
-      background: rgba(0, 0, 0, 0.35); /* see-through dark layer */
-      z-index: 9000;
-      padding: 2rem;
-    }
-
-    .tech-overlay-text {
-      max-width: 700px;
-      font-size: 1.4rem;
-      font-weight: 600;
-      line-height: 1.5;
-      color: #f9fafb;
-    }
-
-    /* ============================
        COUNTDOWN OVERLAY
        ============================ */
     .cw-overlay.cw-countdown-overlay {
@@ -100,11 +75,10 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      background: #0b1220; /* dark card look */
+      background: #0b1220; /* dark background like your dashboard card */
       text-align: center;
       padding: 2rem;
-      z-index: 9999; /* above everything else */
-      pointer-events: none; /* never blocks the video */
+      z-index: 9999; /* above all screens and video */
     }
 
     .cw-countdown-card {
@@ -145,7 +119,7 @@
 </head>
 <body>
 
-  <!-- COUNTDOWN OVERLAY (extra layer – does NOT replace your screens) -->
+  <!-- COUNTDOWN OVERLAY (extra overlay, does not replace existing ones) -->
   <div id="countdown-overlay" class="cw-overlay cw-countdown-overlay">
     <div class="cw-countdown-card">
       <p class="cw-countdown-label">Next service begins in</p>
@@ -175,7 +149,12 @@
 
   <!-- LIVE VIDEO -->
   <div id="videoWrapper" class="video-wrapper">
-    <!-- NOTE: this iframe is EXACTLY like your original one -->
+    <!--
+      IMPORTANT:
+      `src` is set in JS to a NORMAL YouTube embed URL, e.g.
+      https://www.youtube.com/embed/VIDEO_ID?autoplay=1
+      When that loads, YouTube will track views as usual.
+    -->
     <iframe
       id="player"
       src=""
@@ -184,20 +163,10 @@
     ></iframe>
   </div>
 
-  <!-- TECHNICAL ISSUES TRANSPARENT OVERLAY (on top of video) -->
-  <div id="techIssueOverlay" class="tech-overlay">
-    <div class="tech-overlay-text">
-      We are experiencing technical issues. We are actively working on a solution
-      and will try to get this stream fixed.
-    </div>
-  </div>
-
   <script>
     let lastState = null;
-
-    // these flags are only for the countdown overlay
+    // global flag the countdown uses
     window.cwStreamHasVideo = false;
-    window.cwHasBlockingOverlay = false;
 
     async function loadVideo() {
       try {
@@ -208,18 +177,16 @@
           embedUrl: data.embedUrl || "",
           paused: !!data.paused,
           ended: !!data.ended,
-          technicalIssue: !!data.technicalIssue  // NEW flag from server
         };
 
         // If the admin changed anything, FORCE a reload so the outer page
-        // always sees the latest content (same behavior you had before).
+        // (your church site) always sees the latest content.
         if (
           lastState &&
           (
-            state.embedUrl      !== lastState.embedUrl ||
-            state.paused        !== lastState.paused   ||
-            state.ended         !== lastState.ended    ||
-            state.technicalIssue !== lastState.technicalIssue
+            state.embedUrl !== lastState.embedUrl ||
+            state.paused   !== lastState.paused   ||
+            state.ended    !== lastState.ended
           )
         ) {
           window.location.reload();
@@ -228,20 +195,15 @@
 
         lastState = state;
 
-        const url            = state.embedUrl;
-        const paused         = state.paused;
-        const ended          = state.ended;
-        const technicalIssue = state.technicalIssue;
+        const url    = state.embedUrl;  // should be a YouTube embed URL
+        const paused = state.paused;
+        const ended  = state.ended;
 
         const video            = document.getElementById("videoWrapper");
         const notStartedScreen = document.getElementById("notStartedScreen");
         const endedScreen      = document.getElementById("endedScreen");
         const pauseScreen      = document.getElementById("pauseScreen");
-        const techOverlay      = document.getElementById("techIssueOverlay");
         const iframe           = document.getElementById("player");
-
-        let hasVideo = false;
-        let hasBlockingOverlay = false;
 
         if (paused) {
           // Show paused screen only
@@ -249,14 +211,17 @@
           notStartedScreen.style.display = "none";
           endedScreen.style.display      = "none";
           video.style.display            = "none";
-          techOverlay.style.display      = "none";
 
-          hasVideo = false;
-          hasBlockingOverlay = true;
-        } else if (!url.trim()) {
+          window.cwStreamHasVideo = false;
+          if (window.cwUpdateCountdownVisibility) {
+            window.cwUpdateCountdownVisibility();
+          }
+          return;
+        }
+
+        if (!url.trim()) {
           // No video link: either "not started" or "ended"
           video.style.display = "none";
-          techOverlay.style.display = "none";
 
           if (ended) {
             endedScreen.style.display      = "flex";
@@ -267,13 +232,11 @@
           }
 
           pauseScreen.style.display = "none";
-
-          hasVideo = false;
-          hasBlockingOverlay = false;
+          window.cwStreamHasVideo = false;
         } else {
           // Live video: show real YouTube embed so YouTube tracks views
           if (iframe.src !== url) {
-            iframe.src = url; // same as before; URL should already be an embed URL
+            iframe.src = url; // URL already has ?autoplay=1 from admin panel
           }
 
           video.style.display            = "block";
@@ -281,20 +244,9 @@
           endedScreen.style.display      = "none";
           pauseScreen.style.display      = "none";
 
-          hasVideo = true;
-
-          // Technical issues overlay: see-through text ON TOP of the video
-          if (technicalIssue) {
-            techOverlay.style.display = "flex";
-            hasBlockingOverlay = true;
-          } else {
-            techOverlay.style.display = "none";
-            hasBlockingOverlay = false;
-          }
+          // There is an active video, so hide the countdown overlay
+          window.cwStreamHasVideo = true;
         }
-
-        window.cwStreamHasVideo = hasVideo;
-        window.cwHasBlockingOverlay = hasBlockingOverlay;
 
         if (window.cwUpdateCountdownVisibility) {
           window.cwUpdateCountdownVisibility();
@@ -322,8 +274,9 @@
       const SERVICE_HOUR = 9;
       const SERVICE_MINUTE = 30;
 
-      // Window where we ALWAYS hide the countdown and let normal
-      // overlays/video show: Sunday 8:30 AM – 12:30 PM EST
+      // Window where we ALWAYS hide the countdown
+      // and let your existing overlays/video show:
+      // Sunday 8:30 AM – 12:30 PM (EST-style window)
       const HIDE_START_MINUTES = 8 * 60 + 30;   // 8:30
       const HIDE_END_MINUTES   = 12 * 60 + 30;  // 12:30
 
@@ -331,6 +284,7 @@
         const next = new Date(now.getTime());
         const currentDay = now.getDay();
 
+        // Days until this coming Sunday
         let daysUntilSunday = (SERVICE_DAY - currentDay + 7) % 7;
         next.setDate(now.getDate() + daysUntilSunday);
         next.setHours(SERVICE_HOUR, SERVICE_MINUTE, 0, 0);
@@ -360,6 +314,7 @@
       }
 
       function shouldHideForTime(now) {
+        // Uses viewer's local time; you're EST, so it lines up for your main audience.
         const isSunday = now.getDay() === SERVICE_DAY;
         const minutesOfDay = now.getHours() * 60 + now.getMinutes();
 
@@ -372,14 +327,10 @@
 
       function updateVisibility(now) {
         const hideByTime = shouldHideForTime(now);
-        const hasVideo = !!window.cwStreamHasVideo;
-        const hasBlockingOverlay = !!window.cwHasBlockingOverlay;
+        const hasVideo = !!window.cwStreamHasVideo; // set by loadVideo()
 
-        // Hide countdown if:
-        // - we're in the service window, OR
-        // - there is a video playing, OR
-        // - there is a blocking overlay (pause or tech issues)
-        if (hideByTime || hasVideo || hasBlockingOverlay) {
+        // Hide countdown if we're in the service window OR if a video is active
+        if (hideByTime || hasVideo) {
           overlay.classList.add("cw-hidden");
         } else {
           overlay.classList.remove("cw-hidden");
@@ -395,7 +346,7 @@
         updateVisibility(now);
       }
 
-      // Allow loadVideo() to force a visibility refresh
+      // Expose a function so loadVideo() can force a visibility refresh
       window.cwUpdateCountdownVisibility = function () {
         updateVisibility(new Date());
       };
