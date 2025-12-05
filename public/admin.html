@@ -118,17 +118,29 @@
     const btnEnd   = document.getElementById("btnEnd");
     const btnTech  = document.getElementById("btnTech");
 
+    let techActive = false; // local flag to track overlay state
+
     function setStatus(msg) {
       statusEl.textContent = msg || "";
+    }
+
+    function updateTechButtonLabel() {
+      btnTech.textContent = techActive
+        ? "Clear Technical Issues Overlay"
+        : "Technical Issues Overlay";
     }
 
     async function getCurrentState() {
       try {
         const res = await fetch("/api/video", { cache: "no-store" });
         const data = await res.json();
+
         if (data.embedUrl) {
           urlInput.value = data.embedUrl;
         }
+
+        techActive = !!data.technicalIssue;
+        updateTechButtonLabel();
       } catch (e) {
         console.error(e);
       }
@@ -152,12 +164,16 @@
       }
     }
 
+    // START STREAM
     btnStart.addEventListener("click", () => {
       const url = urlInput.value.trim();
       if (!url) {
         alert("Please paste a YouTube embed link.");
         return;
       }
+
+      techActive = false;
+      updateTechButtonLabel();
 
       sendState({
         embedUrl: url,
@@ -167,17 +183,26 @@
       });
     });
 
+    // PAUSE FOR SUNDAY SCHOOL
     btnPause.addEventListener("click", () => {
       const url = urlInput.value.trim();
+
+      techActive = false;
+      updateTechButtonLabel();
+
       sendState({
-        embedUrl: url,   // keep current video URL
+        embedUrl: url || undefined,   // leave URL as-is if input is empty
         paused: true,
         ended: false,
         technicalIssue: false
       });
     });
 
+    // END STREAM
     btnEnd.addEventListener("click", () => {
+      techActive = false;
+      updateTechButtonLabel();
+
       sendState({
         embedUrl: "",
         paused: false,
@@ -186,21 +211,21 @@
       });
     });
 
+    // TECHNICAL ISSUES OVERLAY (TOGGLE)
     btnTech.addEventListener("click", () => {
-      const url = urlInput.value.trim();
-      if (!url) {
-        alert("You usually want a live video URL before showing the Technical Issues overlay.");
-      }
+      // Toggle the local flag
+      techActive = !techActive;
+      updateTechButtonLabel();
 
+      // IMPORTANT:
+      // We only send technicalIssue on/off, and DO NOT touch embedUrl.
+      // That way the current video URL on the server stays exactly the same.
       sendState({
-        embedUrl: url,
-        paused: false,
-        ended: false,
-        technicalIssue: true
+        technicalIssue: techActive
       });
     });
 
-    // preload current state / fill in URL
+    // preload current state / fill in URL and tech flag
     getCurrentState();
   </script>
 </body>
