@@ -1,162 +1,207 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Crossway Stream Admin</title>
-
-<style>
-  body {
-    font-family: system-ui, sans-serif;
-    max-width: 600px;
-    margin: 0 auto;
-    padding: 30px;
-    text-align: center;
-  }
-
-  img.logo {
-    width: 240px; /* bigger logo */
-    margin-bottom: 20px;
-  }
-
-  input {
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    border: 1px solid #ccc;
-    font-size: 1rem;
-    margin-bottom: 15px;
-  }
-
-  button {
-    display: block;
-    width: 100%;
-    padding: 12px;
-    margin-bottom: 10px;
-    border-radius: 8px;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-  }
-
-  .save {
-    background: #2a2f38; /* black/dark navy */
-    color: white;
-  }
-
-  .pause-toggle {
-    background: #598c9f; /* new blue */
-    color: white;
-  }
-
-  .clear {
-    background: #2a2f38; /* same as Start Stream */
-    color: white;
-  }
-
-  .back {
-    background: #598c9f; /* new blue */
-    color: white;
-  }
-
-  p.status {
-    margin-top: 15px;
-    font-weight: 600;
-  }
-</style>
-</head>
-
-<body>
-
-<img class="logo" src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png">
-
-<h2>Crossway Stream Admin Panel</h2>
-
-<input id="url" type="text" placeholder="Paste YouTube link">
-
-<button class="save" id="saveBtn">Start Stream</button>
-<button class="pause-toggle" id="pauseBtn">Pause for Sunday School</button>
-<button class="clear" id="clearBtn">End Stream</button>
-<button class="back" onclick="location.href='https://www.crossway-fellowship.org/live-streams'">Back to Live Stream</button>
-
-<p class="status" id="status"></p>
-
-<script>
-function toEmbed(raw) {
-  try {
-    const u = new URL(raw);
-    if (u.hostname.includes("youtu")) {
-      const id =
-        u.searchParams.get("v") ||
-        u.pathname.split("/").pop();
-      // Autoplay embed
-      return "https://www.youtube.com/embed/" + id + "?autoplay=1";
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Crossway Stream Admin Panel</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: Arial, sans-serif;
+      background: #ffffff;
     }
-  } catch {}
-  return raw;
-}
 
-function setPauseButtonState(isPaused) {
-  const btn = document.getElementById("pauseBtn");
-  btn.dataset.paused = isPaused ? "true" : "false";
-  btn.textContent = isPaused ? "Resume Live Stream" : "Pause for Sunday School";
-}
+    .admin-container {
+      max-width: 640px;
+      margin: 40px auto;
+      text-align: center;
+      padding: 0 16px;
+    }
 
-async function load() {
-  const res = await fetch("/api/video");
-  const data = await res.json();
+    .logo {
+      margin-bottom: 24px;
+    }
 
-  document.getElementById("url").value = data.embedUrl || "";
-  setPauseButtonState(!!data.paused);
-}
+    .logo img {
+      width: 220px;
+      max-width: 80%;
+    }
 
-document.getElementById("saveBtn").onclick = async () => {
-  const raw = document.getElementById("url").value.trim();
-  const embed = raw ? toEmbed(raw) : "";
+    h1 {
+      font-size: 1.6rem;
+      margin-bottom: 24px;
+    }
 
-  await fetch("/api/video", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ embedUrl: embed })
-  });
+    .url-input {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 12px 14px;
+      font-size: 1rem;
+      border-radius: 6px;
+      border: 1px solid #d1d5db;
+      margin-bottom: 18px;
+    }
 
-  document.getElementById("status").textContent =
-    "Live Stream Started";
-};
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: #f9fafb;
+    }
 
-document.getElementById("clearBtn").onclick = async () => {
-  await fetch("/api/video", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    // Clear link AND mark as ended
-    body: JSON.stringify({ embedUrl: "", ended: true })
-  });
+    .btn-start {
+      background: #111827;
+    }
 
-  document.getElementById("url").value = "";
-  document.getElementById("status").textContent =
-    "Live Stream Ended";
-};
+    .btn-pause {
+      background: #36667a;
+    }
 
-document.getElementById("pauseBtn").onclick = async () => {
-  const btn = document.getElementById("pauseBtn");
-  const currentlyPaused = btn.dataset.paused === "true";
-  const newPaused = !currentlyPaused;
+    .btn-end {
+      background: #111827;
+    }
 
-  await fetch("/api/pause", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ paused: newPaused })
-  });
+    .btn-tech {
+      background: #4b86a1;
+    }
 
-  setPauseButtonState(newPaused);
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: default;
+    }
 
-  const status = document.getElementById("status");
-  status.textContent = newPaused
-    ? 'Live Stream Paused for Sunday School'
-    : "Live stream Started Again";
-};
+    .status {
+      margin-top: 16px;
+      font-size: 0.9rem;
+      color: #374151;
+    }
+  </style>
+</head>
+<body>
+  <div class="admin-container">
+    <div class="logo">
+      <img src="https://i.postimg.cc/NGzCCQ35/Untitled-design.png" alt="Crossway Logo">
+    </div>
 
-load();
-</script>
+    <h1>Crossway Stream Admin Panel</h1>
 
+    <input
+      id="youtubeUrl"
+      class="url-input"
+      type="text"
+      placeholder="Paste YouTube link"
+    />
+
+    <button id="btnStart" class="btn btn-start">Start Stream</button>
+    <button id="btnPause" class="btn btn-pause">Pause for Sunday School</button>
+    <button id="btnEnd"   class="btn btn-end">End Stream</button>
+    <button id="btnTech"  class="btn btn-tech">
+      Technical Issues Overlay
+    </button>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <script>
+    const urlInput = document.getElementById("youtubeUrl");
+    const statusEl = document.getElementById("status");
+
+    const btnStart = document.getElementById("btnStart");
+    const btnPause = document.getElementById("btnPause");
+    const btnEnd   = document.getElementById("btnEnd");
+    const btnTech  = document.getElementById("btnTech");
+
+    function setStatus(msg) {
+      statusEl.textContent = msg || "";
+    }
+
+    async function getCurrentState() {
+      try {
+        const res = await fetch("/api/video", { cache: "no-store" });
+        const data = await res.json();
+        if (data.embedUrl) {
+          urlInput.value = data.embedUrl;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function sendState(payload) {
+      setStatus("Saving...");
+      const body = JSON.stringify(payload);
+
+      try {
+        await fetch("/api/video", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body
+        });
+        setStatus("Updated.");
+        setTimeout(() => setStatus(""), 2000);
+      } catch (e) {
+        console.error(e);
+        setStatus("Error updating state.");
+      }
+    }
+
+    btnStart.addEventListener("click", () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        alert("Please paste a YouTube embed link.");
+        return;
+      }
+
+      sendState({
+        embedUrl: url,
+        paused: false,
+        ended: false,
+        technicalIssue: false
+      });
+    });
+
+    btnPause.addEventListener("click", () => {
+      const url = urlInput.value.trim();
+      sendState({
+        embedUrl: url,   // keep current video URL
+        paused: true,
+        ended: false,
+        technicalIssue: false
+      });
+    });
+
+    btnEnd.addEventListener("click", () => {
+      sendState({
+        embedUrl: "",
+        paused: false,
+        ended: true,
+        technicalIssue: false
+      });
+    });
+
+    btnTech.addEventListener("click", () => {
+      const url = urlInput.value.trim();
+      if (!url) {
+        alert("You usually want a live video URL before showing the Technical Issues overlay.");
+      }
+
+      sendState({
+        embedUrl: url,
+        paused: false,
+        ended: false,
+        technicalIssue: true
+      });
+    });
+
+    // preload current state / fill in URL
+    getCurrentState();
+  </script>
 </body>
 </html>
