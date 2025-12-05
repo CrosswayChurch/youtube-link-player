@@ -165,8 +165,10 @@
 
   <script>
     let lastState = null;
-    // global flag the countdown uses
+    // flags the countdown uses
     window.cwStreamHasVideo = false;
+    window.cwIsPaused = false;
+    window.cwIsEnded = false;
 
     async function loadVideo() {
       try {
@@ -205,6 +207,11 @@
         const pauseScreen      = document.getElementById("pauseScreen");
         const iframe           = document.getElementById("player");
 
+        // reset flags
+        window.cwStreamHasVideo = false;
+        window.cwIsPaused = false;
+        window.cwIsEnded = false;
+
         if (paused) {
           // Show paused screen only
           pauseScreen.style.display      = "flex";
@@ -212,27 +219,21 @@
           endedScreen.style.display      = "none";
           video.style.display            = "none";
 
-          window.cwStreamHasVideo = false;
-          if (window.cwUpdateCountdownVisibility) {
-            window.cwUpdateCountdownVisibility();
-          }
-          return;
-        }
-
-        if (!url.trim()) {
+          window.cwIsPaused = true;
+        } else if (!url.trim()) {
           // No video link: either "not started" or "ended"
           video.style.display = "none";
 
           if (ended) {
             endedScreen.style.display      = "flex";
             notStartedScreen.style.display = "none";
+            window.cwIsEnded = true;
           } else {
             notStartedScreen.style.display = "flex";
             endedScreen.style.display      = "none";
           }
 
           pauseScreen.style.display = "none";
-          window.cwStreamHasVideo = false;
         } else {
           // Live video: show real YouTube embed so YouTube tracks views
           if (iframe.src !== url) {
@@ -244,7 +245,7 @@
           endedScreen.style.display      = "none";
           pauseScreen.style.display      = "none";
 
-          // There is an active video, so hide the countdown overlay
+          // There is an active video
           window.cwStreamHasVideo = true;
         }
 
@@ -327,10 +328,16 @@
 
       function updateVisibility(now) {
         const hideByTime = shouldHideForTime(now);
-        const hasVideo = !!window.cwStreamHasVideo; // set by loadVideo()
+        const hasVideo   = !!window.cwStreamHasVideo;
+        const isPaused   = !!window.cwIsPaused;
+        const isEnded    = !!window.cwIsEnded;
 
-        // Hide countdown if we're in the service window OR if a video is active
-        if (hideByTime || hasVideo) {
+        // Hide countdown if:
+        // - we're in the Sunday 8:30–12:30 window (show not-started/other overlays), OR
+        // - a video is playing, OR
+        // - the stream is paused, OR
+        // - the stream is ended
+        if (hideByTime || hasVideo || isPaused || isEnded) {
           overlay.classList.add("cw-hidden");
         } else {
           overlay.classList.remove("cw-hidden");
