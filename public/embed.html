@@ -65,9 +65,68 @@
       color: #555;
       margin-top: 10px;
     }
+
+    /* ============================
+       COUNTDOWN OVERLAY
+       ============================ */
+    .cw-overlay.cw-countdown-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #0b1220; /* dark background like your dashboard card */
+      text-align: center;
+      padding: 2rem;
+      z-index: 9999; /* above all screens and video */
+    }
+
+    .cw-countdown-card {
+      max-width: 540px;
+      width: 90%;
+      background: transparent;
+      text-align: center;
+      padding: 32px 24px;
+      border-radius: 24px;
+      color: #f9fafb;
+    }
+
+    .cw-countdown-label {
+      font-size: 1rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+      color: #e5e7eb;
+    }
+
+    .cw-countdown-time {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      margin-bottom: 16px;
+    }
+
+    .cw-countdown-sub {
+      font-size: 0.95rem;
+      color: #d1d5db;
+    }
+
+    .cw-hidden {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
+
+  <!-- COUNTDOWN OVERLAY (extra overlay, does not replace existing ones) -->
+  <div id="countdown-overlay" class="cw-overlay cw-countdown-overlay">
+    <div class="cw-countdown-card">
+      <p class="cw-countdown-label">Next service begins in</p>
+      <p id="cw-countdown-timer" class="cw-countdown-time">--d --h --m --s</p>
+      <p class="cw-countdown-sub">We look forward to seeing you!</p>
+    </div>
+  </div>
 
   <!-- NOT STARTED SCREEN -->
   <div id="notStartedScreen" class="screen">
@@ -106,6 +165,8 @@
 
   <script>
     let lastState = null;
+    // global flag the countdown uses
+    window.cwStreamHasVideo = false;
 
     async function loadVideo() {
       try {
@@ -150,6 +211,11 @@
           notStartedScreen.style.display = "none";
           endedScreen.style.display      = "none";
           video.style.display            = "none";
+
+          window.cwStreamHasVideo = false;
+          if (window.cwUpdateCountdownVisibility) {
+            window.cwUpdateCountdownVisibility();
+          }
           return;
         }
 
@@ -166,6 +232,7 @@
           }
 
           pauseScreen.style.display = "none";
+          window.cwStreamHasVideo = false;
         } else {
           // Live video: show real YouTube embed so YouTube tracks views
           if (iframe.src !== url) {
@@ -176,6 +243,13 @@
           notStartedScreen.style.display = "none";
           endedScreen.style.display      = "none";
           pauseScreen.style.display      = "none";
+
+          // There is an active video, so hide the countdown overlay
+          window.cwStreamHasVideo = true;
+        }
+
+        if (window.cwUpdateCountdownVisibility) {
+          window.cwUpdateCountdownVisibility();
         }
       } catch (err) {
         console.error("Error loading video:", err);
@@ -186,8 +260,101 @@
     loadVideo();
     // Auto-check every 4 seconds
     setInterval(loadVideo, 4000);
+
+    /* =========================================
+       COUNTDOWN OVERLAY LOGIC
+       ========================================= */
+    (function () {
+      const overlay = document.getElementById("countdown-overlay");
+      const timerEl = document.getElementById("cw-countdown-timer");
+      if (!overlay || !timerEl) return;
+
+      // Service time: Sunday 9:30 AM
+      const SERVICE_DAY = 0; // Sunday (0 = Sun, 1 = Mon, ...)
+      const SERVICE_HOUR = 9;
+      const SERVICE_MINUTE = 30;
+
+      // Window where we ALWAYS hide the countdown
+      // and let your existing overlays/video show:
+      // Sunday 8:30 AM – 12:30 PM (EST-style window)
+      const HIDE_START_MINUTES = 8 * 60 + 30;   // 8:30
+      const HIDE_END_MINUTES   = 12 * 60 + 30;  // 12:30
+
+      function getNextServiceDate(now) {
+        const next = new Date(now.getTime());
+        const currentDay = now.getDay();
+
+        // Days until this coming Sunday
+        let daysUntilSunday = (SERVICE_DAY - currentDay + 7) % 7;
+        next.setDate(now.getDate() + daysUntilSunday);
+        next.setHours(SERVICE_HOUR, SERVICE_MINUTE, 0, 0);
+
+        // If it's already past this Sunday's service time, use next Sunday
+        if (next <= now) {
+          next.setDate(next.getDate() + 7);
+        }
+        return next;
+      }
+
+      function formatDiff(ms) {
+        if (ms <= 0) return "0d 0h 0m 0s";
+
+        const totalSeconds = Math.floor(ms / 1000);
+        const days = Math.floor(totalSeconds / (24 * 3600));
+        const hours = Math.floor((totalSeconds % (24 * 3600)) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return (
+          days + "d " +
+          hours + "h " +
+          minutes + "m " +
+          seconds + "s"
+        );
+      }
+
+      function shouldHideForTime(now) {
+        // Uses viewer's local time; you're EST, so it lines up for your main audience.
+        const isSunday = now.getDay() === SERVICE_DAY;
+        const minutesOfDay = now.getHours() * 60 + now.getMinutes();
+
+        return (
+          isSunday &&
+          minutesOfDay >= HIDE_START_MINUTES &&
+          minutesOfDay < HIDE_END_MINUTES
+        );
+      }
+
+      function updateVisibility(now) {
+        const hideByTime = shouldHideForTime(now);
+        const hasVideo = !!window.cwStreamHasVideo; // set by loadVideo()
+
+        // Hide countdown if we're in the service window OR if a video is active
+        if (hideByTime || hasVideo) {
+          overlay.classList.add("cw-hidden");
+        } else {
+          overlay.classList.remove("cw-hidden");
+        }
+      }
+
+      function update() {
+        const now = new Date();
+        const nextService = getNextServiceDate(now);
+        const diff = nextService - now;
+
+        timerEl.textContent = formatDiff(diff);
+        updateVisibility(now);
+      }
+
+      // Expose a function so loadVideo() can force a visibility refresh
+      window.cwUpdateCountdownVisibility = function () {
+        updateVisibility(new Date());
+      };
+
+      update();
+      setInterval(update, 1000);
+    })();
   </script>
 
 </body>
 </html>
-
