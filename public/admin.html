@@ -103,7 +103,7 @@
     <button id="btnPause" class="btn btn-pause">Pause for Sunday School</button>
     <button id="btnEnd"   class="btn btn-end">End Stream</button>
     <button id="btnTech"  class="btn btn-tech">
-      Technical Issues
+      Technical Issues Overlay
     </button>
 
     <div id="status" class="status"></div>
@@ -126,8 +126,8 @@
 
     function updateTechButtonLabel() {
       btnTech.textContent = techActive
-        ? "Clear Technical Issues"
-        : "Technical Issues";
+        ? "Clear Technical Issues Overlay"
+        : "Technical Issues Overlay";
     }
 
     async function getCurrentState() {
@@ -217,7 +217,9 @@
       techActive = !techActive;
       updateTechButtonLabel();
 
-      // Only send technicalIssue on/off; do not touch embedUrl.
+      // IMPORTANT:
+      // We only send technicalIssue on/off, and DO NOT touch embedUrl.
+      // That way the current video URL on the server stays exactly the same.
       sendState({
         technicalIssue: techActive
       });
